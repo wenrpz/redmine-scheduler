@@ -6,8 +6,10 @@ class CreateTempIssues < ActiveRecord::Migration
       t.text :description
       t.float :duration
       t.string :assigned_to
-      t.date :start_date
-      t.date :end_date
+      t.string :start_date
+      t.string :end_date
+      t.references :project
     end
+    add_index :temp_issues, :project_id
   end
 end
