@@ -1,0 +1,68 @@
+<% content_for :header_tags do %>
+<%= stylesheet_link_tag 'preSchedule.css', :plugin => 'ppr' %>
+<% end %>
+
+<h2>Project information</h2>
+<div class="container">
+    <form action="scheduler" id="pre-schedule">
+    <div class="row">
+        <div class="col-md-6">
+            <p>
+                <strong>Name:</strong>
+                <%= @project.name%>
+            </p>
+            <p>
+                <strong>Description:</strong>
+                <%= @project.description%>
+            </p>
+            <p>
+                <strong>Identifier:</strong>
+                <%= @project.identifier%>
+            </p>
+            <p>
+                <strong>Start Date:</strong>
+                <input type="text" name="project[start_date]" value="">
+            </p>
+            <p>
+                <strong>End Date:</strong>
+                <span id="project-end-date"></span>
+            </p>
+        </div>
+        <div class="col-md-6">
+            <table>
+                <tr>
+                    <th><strong>Name</strong></th>
+                    <th><strong>Role</strong></th>
+                    <th><strong>Commitment Ratio</strong></th>
+                    <th>Color</th>
+                </tr>
+                <% @users.each do |user| -%>
+                <tr>
+                    <td>
+                        <%= user.login %>
+                        <input type="hidden" name="user[<%= user.id %>][id]" value="<%= user.id %>">
+                    </td>
+                    <td><input type="text" name="user[<%= user.id %>][role]"></td>
+                    <td><input type="text" name="user[<%= user.id %>][commitment_ratio]"></td>
+                    <td></td>
+                </tr>
+                <% end %>
+            </table>
+        </div>    
+    </div>
+    <div class="clear"></div>
+    <input type="submit" value="Continue">
+    </form>
+</div>
+<hr/>
+
+<script type="text/javascript">
+    $(function(){
+        $('#pre-schedule').submit(function(e){
+            e.preventDefault();
+            $.post('/importer/schedule?project_id=testigos-de-jehova', $(this).serialize(), function(response){
+                console.log(response);
+            });
+        });
+    });
+</script>
