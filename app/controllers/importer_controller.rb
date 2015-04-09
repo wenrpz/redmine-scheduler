@@ -225,6 +225,7 @@ class ImporterController < ApplicationController
                            :encoding=>iip.encoding,
                            :quote_char=>iip.quote_char,
                            :col_sep=>iip.col_sep})
+    TempIssue.where(:project_id => params[:project_id].to_i).delete_all
     csv.each do |row|
       assignee = row[ attrs_map['assigned_to'] ]
       listAllAssigned.push assignee unless assignee.nil?
@@ -252,11 +253,21 @@ class ImporterController < ApplicationController
   end
 
   def schedule
+    userData = resourceAvailability
+    ap userData
     render json: params
   end
 
   def resourceAvailability
-
+    userData = params.user
+    userData.each do |key, user|
+      dailyHours = Hash.new
+      entries = UserScheduleEntry.where :user_id => user.id
+      entries.each do |entry|
+        dailyHours[entry.days_of_week] = entry.hours * user.commitment_ratio.to_f
+      end
+      userData[key][:dailyHours] = dailyHours
+    end
   end
 
    
