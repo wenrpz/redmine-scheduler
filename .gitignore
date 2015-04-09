@@ -5,4 +5,4 @@
 .rvmrc
 
 # if using bower-rails ignore default bower_components path bower.json files
-assets/components
+#assets/components
