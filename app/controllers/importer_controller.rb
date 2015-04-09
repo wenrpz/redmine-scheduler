@@ -228,6 +228,17 @@ class ImporterController < ApplicationController
     csv.each do |row|
       assignee = row[ attrs_map['assigned_to'] ]
       listAllAssigned.push assignee unless assignee.nil?
+      TempIssue.create(
+        id: row[ attrs_map['id'] ],
+        pid: row[ attrs_map['parent_issue'] ],
+        name: row[ attrs_map['subject'] ],
+        description: row[ attrs_map['description'] ],
+        duration: row[ attrs_map['estimated_hours'] ],
+        assigned_to: row[ attrs_map['assigned_to'] ],
+        start_date: row[ attrs_map['start_date'] ],
+        end_date: row[ attrs_map['due_date'] ],
+        project_id: params[:project_id].to_i
+      )
     end
     listAllAssigned = listAllAssigned.uniq
     @users = User.where "login IN (?)", listAllAssigned
