@@ -251,9 +251,13 @@ class ImporterController < ApplicationController
     end
   end
 
-   def resourceAvailability
+  def schedule
+    render json: params
+  end
 
-   end
+  def resourceAvailability
+
+  end
 
    
 
