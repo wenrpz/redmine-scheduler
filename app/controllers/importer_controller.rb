@@ -14,6 +14,7 @@ class Journal < ActiveRecord::Base
 end
 
 class ImporterController < ApplicationController
+  include PPR::Scheduler
   unloadable
   
   before_filter :find_project
@@ -230,8 +231,9 @@ class ImporterController < ApplicationController
       assignee = row[ attrs_map['assigned_to'] ]
       listAllAssigned.push assignee unless assignee.nil?
       TempIssue.create(
-        id: row[ attrs_map['id'] ],
+        original_id: row[ attrs_map['id'] ],
         pid: row[ attrs_map['parent_issue'] ],
+        predecessor: row[ attrs_map['precedes'] ],
         name: row[ attrs_map['subject'] ],
         description: row[ attrs_map['description'] ],
         duration: row[ attrs_map['estimated_hours'] ],
@@ -253,18 +255,24 @@ class ImporterController < ApplicationController
   end
 
   def schedule
-    userData = resourceAvailability
-    ap userData
+    user_data = resourceAvailability
+    project = Project.find_by_identifier params[:project_id]
+    tasks = TempIssue.where :project_id => project.id
+    start_date = params[:project][:start_date]
+
+    scheduler = PPR::Scheduler::Scheduler.new(tasks, user_data, Date.parse(start_date))
+    scheduler.set_dates
     render json: params
   end
 
   def resourceAvailability
-    userData = params.user
+    userData = params[:user]
     userData.each do |key, user|
       dailyHours = Hash.new
-      entries = UserScheduleEntry.where :user_id => user.id
+      entries = UserScheduleEntry.where :user_id => user[:id]
+      user[:commitment_ratio] = user[:commitment_ratio].to_f
       entries.each do |entry|
-        dailyHours[entry.days_of_week] = entry.hours * user.commitment_ratio.to_f
+        dailyHours[entry.days_of_week] = entry.hours * user[:commitment_ratio]
       end
       userData[key][:dailyHours] = dailyHours
     end
