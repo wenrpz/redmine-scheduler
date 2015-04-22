@@ -1,7 +1,9 @@
 class CreateTempIssues < ActiveRecord::Migration
   def change
     create_table :temp_issues do |t|
-      t.integer :pid
+      t.string :original_id
+      t.string :pid
+      t.string :predecessor
       t.string :name
       t.text :description
       t.float :duration
