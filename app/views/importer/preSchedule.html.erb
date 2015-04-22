@@ -51,7 +51,7 @@
         </div>    
     </div>
     <div class="clear"></div>
-    <input type="submit" value="Continue">
+    <input type="submit" <%= @users.count == 0 ? 'disabled' : '' %> value="Continue">
     </form>
 </div>
 <hr/>
@@ -60,7 +60,7 @@
     $(function(){
         $('#pre-schedule').submit(function(e){
             e.preventDefault();
-            $.post('/importer/schedule?project_id=testigos-de-jehova', $(this).serialize(), function(response){
+            $.post('/importer/schedule?project_id=<%= @project.identifier %>', $(this).serialize(), function(response){
                 console.log(response);
             });
         });
