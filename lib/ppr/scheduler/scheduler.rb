@@ -4,6 +4,7 @@ module PPR
       attr_accessor :start_date
 
       def initialize (tasks, user_data, start_date)
+        @pending_hours = 0
         @last_dates = []
         @tasks = tasks
         @start_date = start_date
@@ -37,28 +38,41 @@ module PPR
         end
 
         def set_depth_date (node, depth)
-          ap depth.to_s + " => " + node.obj.name
-          unless node.obj.duration.nil?
-            if @last_dates.length == 0
-              start_date = @start_date
-            elsif depth > 0 and @last_dates[depth].nil?
-              start_date = @last_dates[depth - 1]
-            else
-              start_date = @last_dates[depth]
-            end
-            duration = get_available_duration(node, start_date)
-            days = (node.obj.duration / duration).ceil
-            end_date = @start_date + days.days
-
-            node.obj.start_date = start_date
-            node.obj.end_date = end_date
-
-            if (node.obj.duration % duration) == 0
-              @last_dates[depth] = end_date + 1.day
-            else
-              @last_dates[depth] = end_date
-            end
+          index = depth > 0 ? depth - 1 : depth
+          if node.obj.duration.nil?
+            node.obj.duration = 0
           end
+          if @last_dates.length == 0
+            start_date = @start_date
+          elsif @last_dates[index].nil?
+            start_date = @last_dates[index - 1]
+          else
+            start_date = @last_dates[index]
+          end
+
+          task_duration = node.obj.duration - @pending_hours
+          duration = get_available_duration(node, start_date)
+          days = (task_duration / duration).round
+          end_date = start_date + days.days
+          @pending_hours = duration - task_duration
+          @pending_hours = 0 if @pending_hours < 0
+
+          node.obj.start_date = start_date
+          node.obj.end_date = end_date
+          
+          ap start_date
+          ap end_date
+          ap node.obj.duration
+          ap duration
+          ap days.to_s + " = "  + (node.obj.duration / duration).to_s
+          ap task_duration
+
+          if (node.obj.duration % duration) != 0 or node.obj.duration == 0
+            @last_dates[index] = end_date
+          else
+            @last_dates[index] = end_date + 1.day
+          end
+          ap depth.to_s + " => " + node.obj.name + ' (' + start_date.to_s + ' - ' + end_date.to_s + ')'
         end
 
         def get_available_duration (node, date)
