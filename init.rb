@@ -1,12 +1,15 @@
 # encoding: UTF-8
 
 require 'redmine'
+require 'download_csv'
 
 Redmine::Plugin.register :ppr do
     name 'Issue Importer'
     author 'Martin Liu / Leo Hourvitz / Stoyan Zhekov / Jérôme Bataille'
     description 'Issue import plugin for Redmine.'
     version '1.2.2'
+	
+	permission :download_issues, {:issues_export => :download_csv}
 
     project_module :importer do
         permission :import, :importer => :index

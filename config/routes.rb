@@ -4,6 +4,8 @@ match '/importer/preSchedule', :to => 'importer#preSchedule', :via => [:get, :po
 match '/importer/schedule', :to => 'importer#schedule', :via => [:get, :post]
 match '/importer/result', :to => 'importer#result', :via => [:get, :post]
 
+get 'projects/issues_export/:action', :to => 'issues_export'
+
 resources :user_schedule_entry do
     member do
         post 'CreateScheduleEntries'
