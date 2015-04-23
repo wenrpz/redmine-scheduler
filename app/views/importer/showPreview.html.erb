@@ -1,0 +1,66 @@
+<% # Forma para filtrar la calendarizacion de los recursos %>
+<div class="left-side">
+</div>
+<% # Enlaces para el mes anterior y el mes siguiente %>
+<div class="right-side">
+    <% # Impresion del calendario %>
+    <table class="cal">
+        <thead>
+            <tr>
+                <% # Imprime la celda mas al noreste vacia %>
+                <th scope="col" title="<%= l :label_week %>" class="week-number"></th>
+                <% # Imprime las columnas correspondientes a los siete dias de la semana empezando por el Domingo %>
+                <% 7.times do |i| %>
+                <th scope="col"><%= day_name((@calendar.first_wday + i) % 7) %></th>
+                <% end %>
+            </tr>
+        </thead>
+        <tbody>
+            <% day= @calendar.startdt %>
+            <% # Itera hasta el ultimo dia del mes %>
+            <% while day <= @calendar.enddt %>
+            <% # Imprime la celda correspondiente al numero se semana si el dia actual es el primer dia de la semana(Domingo) %>
+            <% if @calendar.first_wday == day.cwday %>
+            <tr>
+                <% # (day + ((11 - day.cwday) % 7)) Siempre da el jueves de la proxima semana %>
+                <td class="week-number" title="<%= l :label_week %>"><%= (day + ((11 - day.cwday) % 7)).cweek %></td>
+                <% end %>
+                <% even= day.month == @calendar.month %>
+                <td class="<%= (even) ? 'even' : 'odd' %><%= ' today' if Date.today == day %>">
+                    <% # Imprime el numero del dia %>
+                    <p class="day-num"><%= day.day %></p>
+                    <% # Si el dia pertenece al mes imprime los eventos de dicho dia %>
+                    <% if even %>
+                    <table id="events">
+                        <% # Itera sobre cada evento que exista en este dia %>
+                        <% counter= 0 %>
+                        <% @calendar.events_on(day).each do |e| %>
+                        <% if counter == 0 %>
+                        <tr>
+                            <% end %>
+                            <td style="background-color: <%= @resources[e.id][:colour] %>"><%= "#{ e.hours.to_i }/#{ @resources[e.id][:schedule][day_name day.cwday] }" %></td>
+                            <% counter+= 1 %>
+                            <% if counter == 4 %>
+                        </tr>
+                        <% counter= 0 %>
+                        <% end %>
+                        <% end %>
+                    </table>
+                    <% end %>
+                </td>
+                <% # Cierra la fila si es el ultimo dia de la semana(Sabado) %>
+                <% if day.cwday == @calendar.last_wday %>
+            </tr>
+            <% end %>
+            <% # Pasa al proximo dia %>
+            <% day= day + 1 %>
+            <% end %>
+        </tbody>
+    </table>
+</div>
+
+
+<% html_title "Resources - Redmine" %>
+<% content_for :header_tags do %>
+<%= stylesheet_link_tag 'resources', :plugin => 'ppr' %>
+<% end %>

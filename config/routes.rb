@@ -18,3 +18,4 @@ resources :user_schedule_exception do
 end
 
 get '/resources', :to=> 'resources#show'
+get '/importer/preview', :to=> 'importer#showPreview'

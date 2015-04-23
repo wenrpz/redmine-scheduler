@@ -55,13 +55,15 @@
     </form>
 </div>
 <hr/>
+<div id="showPreview">
+</div>
 
 <script type="text/javascript">
     $(function(){
         $('#pre-schedule').submit(function(e){
             e.preventDefault();
             $.post('/importer/schedule?project_id=<%= @project.identifier %>', $(this).serialize(), function(response){
-                console.log(response);
+                $('#showPreview').html(response);
             });
         });
     });

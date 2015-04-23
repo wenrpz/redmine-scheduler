@@ -23,11 +23,11 @@ class ImporterController < ApplicationController
     :author, :description, :category, :priority, :tracker, :status,
     :start_date, :due_date, :done_ratio, :estimated_hours,
     :parent_issue, :watchers ]
-  
-  def index
-  end
+    
+    def index
+    end
 
-  def match
+    def match
     # Delete existing iip to ensure there can't be two iips for a user
     ImportInProgress.delete_all(["user_id = ?",User.current.id])
     # save import-in-progress data
@@ -60,7 +60,7 @@ class ImporterController < ApplicationController
     begin
       if iip.csv_data.lines.to_a.size <= 1
         flash[:error] = 'No data line in your CSV, check the encoding of the file<br/><br/>Header :<br/>'.html_safe +
-          iip.csv_data
+        iip.csv_data
 
         redirect_to importer_index_path(:project_id => @project)
 
@@ -68,9 +68,9 @@ class ImporterController < ApplicationController
       end
 
       CSV.new(iip.csv_data, {:headers=>true,
-                            :encoding=>iip.encoding,
-                             :quote_char=>iip.quote_char,
-                             :col_sep=>iip.col_sep}).each do |row|
+        :encoding=>iip.encoding,
+        :quote_char=>iip.quote_char,
+        :col_sep=>iip.col_sep}).each do |row|
         @samples[i] = row
         i += 1
         if i >= sample_count
@@ -81,12 +81,12 @@ class ImporterController < ApplicationController
       csv_data_lines = iip.csv_data.lines.to_a
 
       error_message = e.message +
-        '<br/><br/>Header :<br/>'.html_safe +
-        csv_data_lines[0]
+      '<br/><br/>Header :<br/>'.html_safe +
+      csv_data_lines[0]
 
       if csv_data_lines.size > 0
         error_message += '<br/><br/>Error on header or line :<br/>'.html_safe +
-          csv_data_lines[@samples.size + 1]
+        csv_data_lines[@samples.size + 1]
       end
 
       flash[:error] = error_message
@@ -109,8 +109,8 @@ class ImporterController < ApplicationController
 
     if missing_header_columns.present?
       flash[:error] = 'Column header missing : ' + missing_header_columns + " / #{@headers.size}" +
-        '<br/><br/>Header :<br/>'.html_safe +
-        iip.csv_data.lines.to_a[0]
+      '<br/><br/>Header :<br/>'.html_safe +
+      iip.csv_data.lines.to_a[0]
 
       redirect_to importer_index_path(:project_id => @project)
 
@@ -163,7 +163,7 @@ class ImporterController < ApplicationController
       @failed_issues[@failed_count] = row_data
       @messages << "Warning: Unique field #{unique_attr} with value '#{attr_value}' in issue #{@failed_count} has duplicate record"
       raise MultipleIssuesForUniqueValue, "Unique field #{unique_attr} with value '#{attr_value}' has duplicate record"
-      else
+    else
       if issues.size == 0
         raise NoIssueForUniqueValue, "No issue with #{unique_attr} of '#{attr_value}' found"
       end
@@ -193,7 +193,7 @@ class ImporterController < ApplicationController
     user = user_for_login!(login)
     user ? user.id : nil
   end
-    
+  
   
   # Returns the id for the given version or raises RecordNotFound.
   # Implements a cache of version ids based on version name
@@ -216,78 +216,94 @@ class ImporterController < ApplicationController
     end
     @version_id_by_name[name]
   end
-  
-  def preSchedule
-    listAllAssigned = []
-    listFoundUsers = []
-    attrs_map = params[:fields_map].invert
-    iip = ImportInProgress.find_by_user_id(User.current.id)
-    csv = CSV.new(iip.csv_data, {:headers=>true,
-                           :encoding=>iip.encoding,
-                           :quote_char=>iip.quote_char,
-                           :col_sep=>iip.col_sep})
-    TempIssue.where(:project_id => params[:project_id].to_i).delete_all
-    csv.each do |row|
-      assignee = row[ attrs_map['assigned_to'] ]
-      listAllAssigned.push assignee unless assignee.nil?
-      TempIssue.create(
-        original_id: row[ attrs_map['id'] ],
-        pid: row[ attrs_map['parent_issue'] ],
-        predecessor: row[ attrs_map['precedes'] ],
-        name: row[ attrs_map['subject'] ],
-        description: row[ attrs_map['description'] ],
-        duration: row[ attrs_map['estimated_hours'] ],
-        assigned_to: row[ attrs_map['assigned_to'] ],
-        start_date: row[ attrs_map['start_date'] ],
-        end_date: row[ attrs_map['due_date'] ],
-        project_id: params[:project_id].to_i
+
+  def showPreview
+   if params[:year] and params[:year].to_i >= Date.today.year
+    @year = params[:year].to_i
+
+    if params[:month] and params[:month].to_i > 0 and params[:month].to_i < 13
+      @month = params[:month].to_i
+    end
+  end
+  @year||= Date.today.year
+  @month||= Date.today.month
+
+
+  @calendar = Redmine::Helpers::Calendar.new(Date.civil(@year, @month, 1), current_language, :month)
+  render :showPreview, :layout => nil
+end
+
+def preSchedule
+  listAllAssigned = []
+  listFoundUsers = []
+  attrs_map = params[:fields_map].invert
+  iip = ImportInProgress.find_by_user_id(User.current.id)
+  csv = CSV.new(iip.csv_data, {:headers=>true,
+   :encoding=>iip.encoding,
+   :quote_char=>iip.quote_char,
+   :col_sep=>iip.col_sep})
+  TempIssue.where(:project_id => params[:project_id].to_i).delete_all
+  csv.each do |row|
+    assignee = row[ attrs_map['assigned_to'] ]
+    listAllAssigned.push assignee unless assignee.nil?
+    TempIssue.create(
+      original_id: row[ attrs_map['id'] ],
+      pid: row[ attrs_map['parent_issue'] ],
+      predecessor: row[ attrs_map['precedes'] ],
+      name: row[ attrs_map['subject'] ],
+      description: row[ attrs_map['description'] ],
+      duration: row[ attrs_map['estimated_hours'] ],
+      assigned_to: row[ attrs_map['assigned_to'] ],
+      start_date: row[ attrs_map['start_date'] ],
+      end_date: row[ attrs_map['due_date'] ],
+      project_id: params[:project_id].to_i
       )
-    end
-    listAllAssigned = listAllAssigned.uniq
-    @users = User.where "login IN (?)", listAllAssigned
-    @users.each do |user|
-      listFoundUsers.push user.login
-    end
-    diffUsers = listAllAssigned - listFoundUsers
-    unless diffUsers.empty?
-      flash[:error] = "These users does not exist: " + diffUsers.join(', ') + '. <a href="/users/">Add here</a>'
-    end
   end
-
-  def schedule
-    user_data = resourceAvailability
-    project = Project.find_by_identifier params[:project_id]
-    tasks = TempIssue.where :project_id => project.id
-    start_date = params[:project][:start_date]
-
-    scheduler = PPR::Scheduler::Scheduler.new(tasks, user_data, Date.parse(start_date))
-    scheduler.set_dates
-    render json: params
+  listAllAssigned = listAllAssigned.uniq
+  @users = User.where "login IN (?)", listAllAssigned
+  @users.each do |user|
+    listFoundUsers.push user.login
   end
+  diffUsers = listAllAssigned - listFoundUsers
+  unless diffUsers.empty?
+    flash[:error] = "These users does not exist: " + diffUsers.join(', ') + '. <a href="/users/">Add here</a>'
+  end
+end
 
-  def resourceAvailability
-    userData = params[:user]
-    userData.each do |key, user|
-      dailyHours = Hash.new
-      entries = UserScheduleEntry.where :user_id => user[:id]
-      user[:commitment_ratio] = user[:commitment_ratio].to_f
-      entries.each do |entry|
-        dailyHours[entry.days_of_week] = entry.hours * user[:commitment_ratio]
-      end
-      userData[key][:dailyHours] = dailyHours
+def schedule
+  user_data = resourceAvailability
+  project = Project.find_by_identifier params[:project_id]
+  tasks = TempIssue.where :project_id => project.id
+  start_date = params[:project][:start_date]
+
+  scheduler = PPR::Scheduler::Scheduler.new(tasks, user_data, Date.parse(start_date))
+  scheduler.set_dates
+  redirect_to "/importer/preview?project_id="+params[:project_id]
+end
+
+def resourceAvailability
+  userData = params[:user]
+  userData.each do |key, user|
+    dailyHours = Hash.new
+    entries = UserScheduleEntry.where :user_id => user[:id]
+    user[:commitment_ratio] = user[:commitment_ratio].to_f
+    entries.each do |entry|
+      dailyHours[entry.days_of_week] = entry.hours * user[:commitment_ratio]
     end
+    userData[key][:dailyHours] = dailyHours
   end
+end
 
-   
 
-  def result
-    @handle_count = 0
-    @update_count = 0
-    @skip_count = 0
-    @failed_count = 0
-    @failed_issues = Hash.new
-    @messages = Array.new
-    @affect_projects_issues = Hash.new
+
+def result
+  @handle_count = 0
+  @update_count = 0
+  @skip_count = 0
+  @failed_count = 0
+  @failed_issues = Hash.new
+  @messages = Array.new
+  @affect_projects_issues = Hash.new
     # This is a cache of previously inserted issues indexed by the value
     # the user provided in the unique column
     @issue_by_unique_attr = Hash.new
@@ -304,8 +320,8 @@ class ImporterController < ApplicationController
     end
     if iip.created.strftime("%Y-%m-%d %H:%M:%S") != params[:import_timestamp]
       flash[:error] = "You seem to have started another import " \
-          "since starting this one. " \
-          "This import cannot be completed"
+      "since starting this one. " \
+      "This import cannot be completed"
       return
     end
     
@@ -346,9 +362,9 @@ class ImporterController < ApplicationController
     end
 
     CSV.new(iip.csv_data, {:headers=>true,
-                           :encoding=>iip.encoding,
-                           :quote_char=>iip.quote_char,
-                           :col_sep=>iip.col_sep}).each do |row|
+     :encoding=>iip.encoding,
+     :quote_char=>iip.quote_char,
+     :col_sep=>iip.col_sep}).each do |row|
 
       project = Project.find_by_name(row[attrs_map["project"]])
       if !project
@@ -425,7 +441,7 @@ class ImporterController < ApplicationController
           note = row[journal_field] || ''
           journal = issue.init_journal(author || User.current, 
             note || '')
-            
+          
           @update_count += 1
           
         rescue NoIssueForUniqueValue
@@ -446,13 +462,13 @@ class ImporterController < ApplicationController
           next
         end
       end
-    
+      
       # project affect
       if project == nil
         project = Project.find_by_id(issue.project_id)
       end
       @affect_projects_issues.has_key?(project.name) ?
-        @affect_projects_issues[project.name] += 1 : @affect_projects_issues[project.name] = 1
+      @affect_projects_issues[project.name] += 1 : @affect_projects_issues[project.name] = 1
 
       # required attributes
       issue.status_id = status != nil ? status.id : issue.status_id
@@ -462,7 +478,7 @@ class ImporterController < ApplicationController
       # optional attributes
       description = row[attrs_map["description"]]
       issue.description = description ?
-          description.gsub(/\r\n?|\\n|<br\s*\/?>/, "\n") : issue.description
+      description.gsub(/\r\n?|\\n|<br\s*\/?>/, "\n") : issue.description
       issue.category_id = category != nil ? category.id : issue.category_id
       issue.start_date = row[attrs_map["start_date"]].blank? ? nil : Date.parse(row[attrs_map["start_date"]])
       issue.due_date = row[attrs_map["due_date"]].blank? ? nil : Date.parse(row[attrs_map["due_date"]])
@@ -602,7 +618,7 @@ class ImporterController < ApplicationController
         @handle_count += 1
 
       end
-  
+      
     end # do
     
     if @failed_issues.size > 0
@@ -617,7 +633,7 @@ class ImporterController < ApplicationController
     ImportInProgress.delete_all(["created < ?",Time.new - 3*24*60*60])
   end
 
-private
+  private
 
   def find_project
     @project = Project.find(params[:project_id])

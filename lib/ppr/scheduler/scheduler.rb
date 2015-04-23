@@ -50,7 +50,11 @@ module PPR
             start_date = @last_dates[index]
           end
 
-          task_duration = node.obj.duration - @pending_hours
+          if node.obj.duration >= @pending_hours
+            task_duration = node.obj.duration - @pending_hours
+          else
+            task_duration = node.obj.duration
+          end
           duration = get_available_duration(node, start_date)
           days = (task_duration / duration).round
           end_date = start_date + days.days
@@ -59,13 +63,6 @@ module PPR
 
           node.obj.start_date = start_date
           node.obj.end_date = end_date
-          
-          ap start_date
-          ap end_date
-          ap node.obj.duration
-          ap duration
-          ap days.to_s + " = "  + (node.obj.duration / duration).to_s
-          ap task_duration
 
           if (node.obj.duration % duration) != 0 or node.obj.duration == 0
             @last_dates[index] = end_date
@@ -73,10 +70,22 @@ module PPR
             @last_dates[index] = end_date + 1.day
           end
           ap depth.to_s + " => " + node.obj.name + ' (' + start_date.to_s + ' - ' + end_date.to_s + ')'
+          puts start_date.to_s + " - " + end_date.to_s
+          puts node.obj.duration.to_s + " hours task"
+          puts days.to_s + " days from start"
+          puts task_duration
+          puts "\n"
         end
 
         def get_available_duration (node, date)
           6
+        end
+
+        def save_graph
+          @graph.nodes.each do |i, node|
+            #save node
+            #save successors
+          end
         end
       end
   end
