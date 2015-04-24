@@ -2,6 +2,7 @@
 <%= stylesheet_link_tag 'preSchedule.css', :plugin => 'ppr' %>
 <% end %>
 
+<% if @diffUsers.empty? %>
 <h2>Project information</h2>
 <div class="container">
     <form action="scheduler" id="pre-schedule">
@@ -21,7 +22,8 @@
             </p>
             <p>
                 <strong>Start Date:</strong>
-                <input type="text" name="project[start_date]" value="">
+                <input type="text" class="project-start-input" name="project[start_date]" value="<%= Time.now.strftime("%Y-%m-%d") %>">
+                <span id="project-start-date"></span>
             </p>
             <p>
                 <strong>End Date:</strong>
@@ -41,17 +43,21 @@
                     <td>
                         <%= user.login %>
                         <input type="hidden" name="user[<%= user.id %>][id]" value="<%= user.id %>">
+                        <input type="hidden" name="user[<%= user.id %>][username]" value="<%= user.login %>">
                     </td>
                     <td><input type="text" name="user[<%= user.id %>][role]"></td>
                     <td><input type="text" name="user[<%= user.id %>][commitment_ratio]"></td>
-                    <td></td>
+                    <% color = rand(0xffffff).to_s(16) %>
+                    <td class="user-color" style="background-color: <%= '#' + color %>">
+                      <input type="hidden" name="user[<%= user.id %>][color]" value="#<%= color%>">
+                    </td>
                 </tr>
                 <% end %>
             </table>
         </div>    
     </div>
     <div class="clear"></div>
-    <input type="submit" <%= @users.count == 0 ? 'disabled' : '' %> value="Continue">
+    <input id="preScheduleButton" type="submit" <%= @users.count == 0 ? 'disabled' : '' %> value="Continue">
     </form>
 </div>
 <hr/>
@@ -60,11 +66,27 @@
 
 <script type="text/javascript">
     $(function(){
+        var projectId = '<%= @project.identifier %>';
+        function postSchedule(url) {
+            $.post(url, $('#pre-schedule').serialize(), function(response){
+                $('#preScheduleButton').hide();
+                $('#showPreview').hide().html(response).fadeIn('slow');
+                var endDate = $('#showPreview .project-end-date').val();
+                var startDate = $('.project-start-input').hide().val();
+                $('#project-end-date').html(endDate);
+                $('#project-start-date').html(startDate);
+            });
+        }
+
         $('#pre-schedule').submit(function(e){
             e.preventDefault();
-            $.post('/importer/schedule?project_id=<%= @project.identifier %>', $(this).serialize(), function(response){
-                $('#showPreview').html(response);
-            });
+            postSchedule('/importer/schedule?project_id=' + projectId);
         });
+
+        $(document).on('click', '.month-links a', function(e){
+            e.preventDefault();
+            postSchedule($(this).attr('href'));
+        })
     });
 </script>
+<% end %>

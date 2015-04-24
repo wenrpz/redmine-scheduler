@@ -15,6 +15,7 @@ end
 
 class ImporterController < ApplicationController
   include PPR::Scheduler
+  helper CalendarsHelper
   unloadable
   
   before_filter :find_project
@@ -217,82 +218,84 @@ class ImporterController < ApplicationController
     @version_id_by_name[name]
   end
 
-  def showPreview
-   if params[:year] and params[:year].to_i >= Date.today.year
-    @year = params[:year].to_i
-
-    if params[:month] and params[:month].to_i > 0 and params[:month].to_i < 13
-      @month = params[:month].to_i
+  def preSchedule
+    listAllAssigned = []
+    listFoundUsers = []
+    attrs_map = params[:fields_map].invert
+    iip = ImportInProgress.find_by_user_id(User.current.id)
+    csv = CSV.new(iip.csv_data, {:headers=>true,
+     :encoding=>iip.encoding,
+     :quote_char=>iip.quote_char,
+     :col_sep=>iip.col_sep})
+    TempIssue.where(:project_id => params[:project_id].to_i).delete_all
+    csv.each do |row|
+      assignee = row[ attrs_map['assigned_to'] ]
+      listAllAssigned.push assignee unless assignee.nil?
+      TempIssue.create(
+        original_id: row[ attrs_map['id'] ],
+        pid: row[ attrs_map['parent_issue'] ],
+        predecessor: row[ attrs_map['precedes'] ],
+        name: row[ attrs_map['subject'] ],
+        description: row[ attrs_map['description'] ],
+        duration: row[ attrs_map['estimated_hours'] ],
+        assigned_to: row[ attrs_map['assigned_to'] ],
+        start_date: row[ attrs_map['start_date'] ],
+        end_date: row[ attrs_map['due_date'] ],
+        project_id: params[:project_id].to_i
+        )
+    end
+    listAllAssigned = listAllAssigned.uniq
+    @users = User.where "login IN (?)", listAllAssigned
+    @users.each do |user|
+      listFoundUsers.push user.login
+    end
+    @diffUsers = listAllAssigned - listFoundUsers
+    unless @diffUsers.empty?
+      flash[:error] = "These users does not exist: " + @diffUsers.join(', ') + '. <a href="/users/">Add here</a>'
     end
   end
-  @year||= Date.today.year
-  @month||= Date.today.month
 
+  def schedule
+    user_data = resourceAvailability
+    project = Project.find_by_identifier params[:project_id]
+    tasks = TempIssue.where :project_id => project.id
+    start_date = params[:project][:start_date]
 
-  @calendar = Redmine::Helpers::Calendar.new(Date.civil(@year, @month, 1), current_language, :month)
-  render :showPreview, :layout => nil
-end
+    scheduler = PPR::Scheduler::Scheduler.new(tasks, user_data, Date.parse(start_date))
+    scheduling_data = scheduler.set_dates
+    graph = scheduling_data[:graph]
+    @end_date = scheduling_data[:end_date]
 
-def preSchedule
-  listAllAssigned = []
-  listFoundUsers = []
-  attrs_map = params[:fields_map].invert
-  iip = ImportInProgress.find_by_user_id(User.current.id)
-  csv = CSV.new(iip.csv_data, {:headers=>true,
-   :encoding=>iip.encoding,
-   :quote_char=>iip.quote_char,
-   :col_sep=>iip.col_sep})
-  TempIssue.where(:project_id => params[:project_id].to_i).delete_all
-  csv.each do |row|
-    assignee = row[ attrs_map['assigned_to'] ]
-    listAllAssigned.push assignee unless assignee.nil?
-    TempIssue.create(
-      original_id: row[ attrs_map['id'] ],
-      pid: row[ attrs_map['parent_issue'] ],
-      predecessor: row[ attrs_map['precedes'] ],
-      name: row[ attrs_map['subject'] ],
-      description: row[ attrs_map['description'] ],
-      duration: row[ attrs_map['estimated_hours'] ],
-      assigned_to: row[ attrs_map['assigned_to'] ],
-      start_date: row[ attrs_map['start_date'] ],
-      end_date: row[ attrs_map['due_date'] ],
-      project_id: params[:project_id].to_i
-      )
-  end
-  listAllAssigned = listAllAssigned.uniq
-  @users = User.where "login IN (?)", listAllAssigned
-  @users.each do |user|
-    listFoundUsers.push user.login
-  end
-  diffUsers = listAllAssigned - listFoundUsers
-  unless diffUsers.empty?
-    flash[:error] = "These users does not exist: " + diffUsers.join(', ') + '. <a href="/users/">Add here</a>'
-  end
-end
+    #setup calendar
+    if params[:year] and params[:year].to_i >= Date.today.year
+      @year = params[:year].to_i
 
-def schedule
-  user_data = resourceAvailability
-  project = Project.find_by_identifier params[:project_id]
-  tasks = TempIssue.where :project_id => project.id
-  start_date = params[:project][:start_date]
-
-  scheduler = PPR::Scheduler::Scheduler.new(tasks, user_data, Date.parse(start_date))
-  scheduler.set_dates
-  redirect_to "/importer/preview?project_id="+params[:project_id]
-end
-
-def resourceAvailability
-  userData = params[:user]
-  userData.each do |key, user|
-    dailyHours = Hash.new
-    entries = UserScheduleEntry.where :user_id => user[:id]
-    user[:commitment_ratio] = user[:commitment_ratio].to_f
-    entries.each do |entry|
-      dailyHours[entry.days_of_week] = entry.hours * user[:commitment_ratio]
+      if params[:month] and params[:month].to_i > 0 and params[:month].to_i < 13
+        @month = params[:month].to_i
+      end
     end
-    userData[key][:dailyHours] = dailyHours
+    @year||= Date.today.year
+    @month||= Date.today.month
+
+    @calendar = Redmine::Helpers::Calendar.new(Date.civil(@year, @month, 1), current_language, :month)
+    @calendar.events = graph.nodes.values
+    @user_colors = {}
+    params[:user].values.each { |user| @user_colors[user.username] = user.color }
+    render :showPreview, :layout => nil
   end
-end
+
+  def resourceAvailability
+    userData = params[:user]
+    userData.each do |key, user|
+      dailyHours = Hash.new
+      entries = UserScheduleEntry.where :user_id => user[:id]
+      user[:commitment_ratio] = user[:commitment_ratio].to_f
+      entries.each do |entry|
+        dailyHours[entry.days_of_week] = entry.hours * user[:commitment_ratio]
+      end
+      userData[key][:dailyHours] = dailyHours
+    end
+  end
 
 
 
